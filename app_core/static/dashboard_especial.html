@@ -314,7 +314,7 @@ aside {
             <i class="fas fa-chevron-right opacity-0 group-hover:opacity-100 transition-all"></i>
         </button>
         </div>
-        <button onclick="launchUnauthorizedSSH(currentLockedTarget.ip)"
+        <button onclick="launchUnauthorizedSSH(currentLockedTarget.ip, currentLockedTarget.os)"
                 class="w-full py-4 bg-[#ff3366]/10 border-2 border-[#ff3366] rounded-xl text-[#ff3366] font-black text-xs tracking-widest hover:bg-[#ff3366]/20 transition-all flex items-center justify-center gap-3 group">
             <i class="fas fa-user-secret"></i>
             UNAUTHORIZED SSH
@@ -868,13 +868,12 @@ function toggleConnectionMode() {
 
 
 
-
-async function runAttack(attackerIp, targetIp, scriptName) {
+async function runAttack(attackerIp, targetIp, targetOs, scriptName) {
     terminalWrite(`ESTABLISHING SECURE SSH TUNNEL...`, 'text-sky-300 animate-pulse');
 
     try {
         const response = await fetch(
-            `${API_BASE}/hud/attack/launch?target=${encodeURIComponent(targetIp)}&script=${encodeURIComponent(scriptName)}`
+            `${API_BASE}/hud/attack/launch?target=${encodeURIComponent(targetIp)}&os=${encodeURIComponent(targetOs || '')}&script=${encodeURIComponent(scriptName)}`
         );
 
         if (!response.ok) {
@@ -895,7 +894,11 @@ async function runAttack(attackerIp, targetIp, scriptName) {
                 if (line.startsWith('data:')) {
                     let cleanLine = line.replace('data:', '').trim();
 
-                    if (cleanLine.includes("[MANAGER ERROR]") || cleanLine.includes("[INFRA ERROR]") || cleanLine.includes("[SSH ERROR]")) {
+                    if (
+                        cleanLine.includes("[MANAGER ERROR]") ||
+                        cleanLine.includes("[INFRA ERROR]") ||
+                        cleanLine.includes("[SSH ERROR]")
+                    ) {
                         terminalWrite(cleanLine, 'text-red-500 font-bold');
                     } else if (cleanLine) {
                         terminalWrite(`  ${cleanLine}`, 'text-[#00ff88]');
@@ -912,21 +915,19 @@ async function runAttack(attackerIp, targetIp, scriptName) {
         terminalWrite(`!! FALLO CRÍTICO EN EL SISTEMA: ${err.message}`, 'text-red-500 font-black');
     }
 }
-let activeTerminalContext = null;
 
+
+
+let activeTerminalContext = null;
 function initiateTacticalPing(targetIp) {
-    // 1. VALIDACIÓN DE SEGURIDAD INMEDIATA
-    // Si la IP no existe o es "N/A", abortamos la misión antes de contactar al servidor
     if (!targetIp || targetIp === "N/A" || targetIp === "undefined" || targetIp === "") {
         terminalWrite("!! ERROR DE PUNTERÍA: EL OBJETIVO NO TIENE UNA IP VÁLIDA", "text-red-500 font-black");
         logCombat("CRITICAL", "Misión abortada: Dirección de destino nula.");
-        return; 
+        return;
     }
 
-    // 2. IDENTIFICACIÓN DE LA UNIDAD ATACANTE
-    // Buscamos en el grafo el nodo que tiene el rol de atacante
     const attackerNode = cy.nodes('[role = "attacker"]')[0];
-    
+
     if (!attackerNode) {
         terminalWrite("!! ERROR DE COMUNICACIÓN: NO SE DETECTA NODO ATACANTE", "text-red-500");
         logCombat("ERROR", "SECTOR BLOQUEADO: No hay unidad con privilegios de ataque en el HUD.");
@@ -936,28 +937,19 @@ function initiateTacticalPing(targetIp) {
     const attackerName = attackerNode.data('name');
     const attackerIp = attackerNode.data('ip');
 
-    // 3. IDENTIFICACIÓN DEL OBJETIVO EN EL GRAFO (Para el log visual)
     const targetNode = cy.nodes().filter(n => n.data('ip') === targetIp)[0];
     const targetName = targetNode ? targetNode.data('name') : "UNKNOWN_HOST";
+    const targetOs = targetNode ? targetNode.data('os') : "";
 
-    // 4. PREPARACIÓN DE LA TERMINAL TÁCTICA
-    // Limpiamos el log para mostrar la nueva misión de forma clara
-    // const log = document.getElementById("combat-log");
-   //  log.innerHTML = ""; 
-    
     terminalWrite(`╔══════════════════════════════════════════════════════╗`, 'text-sky-400');
     terminalWrite(`║ MISSION: TACTICAL NETWORK DIAGNOSTIC (PING)          ║`, 'text-sky-400');
     terminalWrite(`║ ORIGIN:  ${attackerName.padEnd(20)} [${attackerIp}] ║`, 'text-white font-bold');
     terminalWrite(`║ TARGET:  ${targetName.padEnd(20)} [${targetIp}]   ║`, 'text-yellow-400 font-bold');
     terminalWrite(`╚══════════════════════════════════════════════════════╝`, 'text-sky-400');
-    
-    // 5. EJECUCIÓN DEL ATAQUE
-    // Enviamos los datos validados a la función que conecta con el backend
+
     logCombat("ACTION", `Iniciando túnel táctico hacia ${targetIp}`);
-    runAttack(attackerIp, targetIp, 'ping_target.sh');
+    runAttack(attackerIp, targetIp, targetOs, 'ping_target.sh');
 }
-
-
 function initiateFileTamper(targetIp) {
   if (!targetIp || targetIp === "N/A" || targetIp === "undefined" || targetIp === "") {
     terminalWrite("!! ERROR: EL OBJETIVO NO TIENE UNA IP VÁLIDA", "text-red-500 font-black");
@@ -977,6 +969,7 @@ function initiateFileTamper(targetIp) {
 
   const targetNode = cy.nodes().filter(n => n.data('ip') === targetIp)[0];
   const targetName = targetNode ? targetNode.data('name') : "UNKNOWN_HOST";
+  const targetOs = targetNode ? targetNode.data('os') : "";
 
   terminalWrite(`╔══════════════════════════════════════════════════════╗`, 'text-[#ff3366]');
   terminalWrite(`║ MISSION: FILE TAMPER (LAB SCOPE)                     ║`, 'text-[#ff3366]');
@@ -985,11 +978,8 @@ function initiateFileTamper(targetIp) {
   terminalWrite(`╚══════════════════════════════════════════════════════╝`, 'text-[#ff3366]');
 
   logCombat("ACTION", `Iniciando FILE TAMPER hacia ${targetIp}`);
-
-  // nombre exacto del script en tu SCRIPTS_DIR
-  runAttack(attackerIp, targetIp, 'multi_Attack_sim.sh');
+  runAttack(attackerIp, targetIp, targetOs, 'multi_Attack_sim.sh');
 }
-
 
 function renderTargetDetails(node) {
     if (!node || !node.data) return;
@@ -1196,7 +1186,8 @@ function launchDataExfilFromSidebar() {
   terminalWrite("MISSION: DATA EXFILTRATION","text-[#ff3366]");
   terminalWrite(`TARGET: ${currentLockedTarget.ip}`,"text-yellow-400");
 
-  runAttack(attackerIp,currentLockedTarget.ip,'data_exfiltration.sh');
+  
+  runAttack(attackerIp, currentLockedTarget.ip, currentLockedTarget.os || '', 'data_exfiltration.sh');
 }
 
 function launchPortScanFromSidebar() {
@@ -1218,7 +1209,8 @@ function launchPortScanFromSidebar() {
   terminalWrite("MISSION: PORT SCAN RECON","text-[#ff3366]");
   terminalWrite(`TARGET: ${currentLockedTarget.ip}`,"text-yellow-400");
 
-  runAttack(attackerIp,currentLockedTarget.ip,'port_scan_recon.sh');
+  
+  runAttack(attackerIp, currentLockedTarget.ip, currentLockedTarget.os || '', 'port_scan_recon.sh');
 }
 function launchModbusAttackFromSidebar() {
 
@@ -1239,10 +1231,10 @@ function launchModbusAttackFromSidebar() {
   terminalWrite("MISSION: MODBUS REGISTER ATTACK","text-[#ff3366]");
   terminalWrite(`TARGET PLC: ${currentLockedTarget.ip}`,"text-yellow-400");
 
-  runAttack(attackerIp,currentLockedTarget.ip,'modbus_register_attack.sh');
+  runAttack(attackerIp, currentLockedTarget.ip, currentLockedTarget.os || '', 'modbus_register_attack.sh');
 }
 
-function launchUnauthorizedSSH(targetIp) {
+function launchUnauthorizedSSH(targetIp, targetOs = "") {
 
   if (!targetIp || targetIp === "N/A") {
     terminalWrite("TARGET IP INVALID", "text-red-500");
@@ -1262,7 +1254,8 @@ function launchUnauthorizedSSH(targetIp) {
   terminalWrite(`║ TARGET: ${targetIp}                 ║`, 'text-yellow-400');
   terminalWrite("╚══════════════════════════════════════╝", 'text-[#ff3366]');
 
-  runAttack(attackerIp, targetIp, 'unauthorized_ssh_attempt.sh');
+  
+  runAttack(attackerIp, targetIp, targetOs, 'unauthorized_ssh_attempt.sh');
 }
 
 
@@ -1461,20 +1454,25 @@ function toolAction(tool) {
 
     switch (tool) {
         case "wazuh":
-            showToast("Wazuh manager status requested");
+            openWazuhDynamicHUD();
             break;
+
+        case "caldera":
+            openCalderaDynamicHUD();
+            break;
+
         case "suricata":
             showToast("Suricata rules / sensors");
             break;
+
         case "snort":
             showToast("Snort engine status");
             break;
-        case "caldera":
-            showToast("CALDERA C2 interface");
-            break;
+
         case "nmap":
             showToast("Nmap reconnaissance module");
             break;
+
         default:
             logCombat("WARN", "Unknown tool");
     }
@@ -1587,6 +1585,99 @@ function launchFileTamperFromSidebar() {
 
   initiateFileTamper(currentLockedTarget.ip);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function openCalderaDynamicHUD() {
+    try {
+        logCombat("TOOL", "Resolving attacker node for CALDERA");
+
+        const response = await fetch(`${API_BASE}/instance_roles`);
+        const roles = await response.json();
+
+        const attacker = roles.attacker || roles.attack;
+
+        if (!attacker || !attacker.ip) {
+            logCombat("ERROR", "Attacker instance not found");
+            writeDualTerminal('monitoring', "CALDERA ERROR: attacker instance not found", "text-red-500 font-bold");
+            return;
+        }
+
+        const url = `http://${attacker.ip}:8888`;
+
+        logCombat("TOOL", `Opening CALDERA on ${attacker.name} ${attacker.ip}`);
+        writeDualTerminal('monitoring', `Opening CALDERA: ${url}`, "text-[#ff3366] font-bold");
+
+        window.open(
+            url,
+            "caldera_window",
+            "toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1400,height=900"
+        );
+
+    } catch (error) {
+        logCombat("ERROR", `CALDERA connection failed: ${error.message}`);
+        writeDualTerminal('monitoring', `CALDERA ERROR: ${error.message}`, "text-red-500 font-bold");
+    }
+}
+
+async function openWazuhDynamicHUD() {
+    try {
+        logCombat("TOOL", "Resolving monitor node for WAZUH");
+
+        const response = await fetch(`${API_BASE}/instance_roles`);
+        const roles = await response.json();
+
+        if (!roles.monitor || !roles.monitor.ip) {
+            logCombat("ERROR", "Monitor instance not found");
+            writeDualTerminal('monitoring', "WAZUH ERROR: monitor instance not found", "text-red-500 font-bold");
+            return;
+        }
+
+        const instanceName = roles.monitor.name;
+        const ip = roles.monitor.ip;
+
+        writeDualTerminal('monitoring', `Checking WAZUH on ${instanceName} ${ip}`, "text-[#00aaff]");
+
+        const res = await fetch(`${API_BASE}/check_wazuh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                instance: instanceName,
+                ip: ip
+            })
+        });
+
+        const data = await res.json();
+        const output = data.stdout || data.stderr || "No output";
+
+        writeDualTerminal('monitoring', output, "text-[#00aaff]/90");
+        logCombat("TOOL", `Opening WAZUH on ${ip}`);
+
+        window.open(
+            `https://${ip}`,
+            "wazuh_window",
+            "toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1400,height=900"
+        );
+
+    } catch (error) {
+        logCombat("ERROR", `WAZUH connection failed: ${error.message}`);
+        writeDualTerminal('monitoring', `WAZUH ERROR: ${error.message}`, "text-red-500 font-bold");
+    }
+}
+
+
+
 
 
 
