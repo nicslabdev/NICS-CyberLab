@@ -290,17 +290,28 @@ The manual dashboard reflects that same logic in an inspectable form and also gi
 ![Forensic Acquisition and Analysis Dashboard](Images_readme/forensic_acquisition_dashboard.png)
 ![Forensic Acquisition and Analysis Dashboard](Images_readme/forensic_acquisition_dashboard_2.png)
 
-### Live traffic preservation inside the case
+### Traffic capture
 
-The dashboard also supports **manual live traffic capture** for a selected instance. When the operator launches traffic capture manually, the captured traffic is shown in the live analyzer window and is also **preserved automatically inside the active forensic case**.
+NICS CyberLab supports complementary traffic capture mechanisms at scenario level.
 
-This means the resulting network evidence becomes part of the same structured case context as disk and memory artifacts.
+The platform performs periodic rolling traffic capture automatically. Traffic is collected every 120 seconds from the relevant host-side interfaces and stored as time-bounded PCAP segments. This allows continuous observation of network activity across the scenario even when no incident has been detected. In future versions, the capture frequency may be adjusted dynamically according to the operational state of the scenario and the level of risk measured within it.
+
+The platform also provides user-triggered traffic capture from the interface. In this mode, the user selects the instance of interest and can observe and capture its traffic on demand for as long as needed.
+
+Together, these mechanisms support both continuous background traffic collection and flexible operator-driven inspection.
+
+### Traffic preservation inside the forensic case
+
+When an incident requires forensic analysis, network traffic can be preserved as part of the active case. This preservation is not limited to the traffic captured at the time of detection. It may also include traffic collected periodically before and after the incident, so the case retains a broader network context.
+
+This makes it possible to reconstruct network activity before, during, and after the incident. As a result, network evidence becomes part of the same structured case context as disk and memory artifacts, improving traceability, contextual reconstruction, and forensic analysis.
+
 
 ![Live Traffic Analyzer](Images_readme/forensic_live_traffic_analyzer.png)
 
 ### Why it matters
 
-This service connects alerting with evidence preservation and analysis. It provides a structured environment for handling traffic, disk, and memory artifacts while maintaining case context, integrity visibility, and operational traceability.
+This design separates operational traffic acquisition from forensic preservation while allowing both to work together. It supports continuous observability, user-driven inspection, and stronger case reconstruction through the integration of traffic, disk, and memory artifacts within a unified investigative context.
 
 ---
 
