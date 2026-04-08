@@ -458,5 +458,6 @@ industrial-scenario/PLC/plc_programs/TankControl.st
 ```
 
 ---
- 
-                                 NICS LAB — NICS | CyberLab
+
+## 📝 Acknowledgments
+This repository is part of the project "CiberIA: Investigación e Innovación para la Integración de Ciberseguridad e Inteligencia Artificial" (Proyecto C079/23), financed by "European Union NextGeneration-EU, the Recovery Plan, Transformation and Resilience", through INCIBE. It has also been partially supported by the project SecAI (PID2022-139268OB-I00) funded by the Spanish Ministerio de Ciencia e Innovacion, and Agencia Estatal de Investigacion.
