@@ -363,116 +363,32 @@ This service turns the forensic case into an inspectable analytical object. It h
 
 ---
 
-## 4. Additional integrated modules
 
-Beyond the core infrastructure, scenario, monitoring, and forensic services, NICS CyberLab also integrates several external research-oriented components through dedicated web interfaces. For each of these modules, a graphical layer was developed to make the original functionality more visual, manageable, and user-friendly inside the platform. In this way, the external repository remains the technical core of the module, while NICS CyberLab provides the operational and visual surface needed for guided usage, execution control, and result inspection.
+## 4. Remote Lab Exchange
 
-### CiberIA Lab
+**Remote Lab Exchange** is a platform capability that allows NICS CyberLab to exchange data with external machines or remote laboratory environments for later processing and structured feedback recovery.
 
-The **CiberIA Lab** module integrates the original CiberIA framework into NICS CyberLab for network flow classification, model retraining, controlled inference, artifact-oriented validation, custom dataset generation from PCAP files, and external dataset import.
+This capability is designed to support workflows in which selected artifacts must be transferred outside the local scenario for specialized analysis and then returned to the platform in the form of reports, extracted results, or other derived outputs. The exchanged data may include network traffic captures, suspicious files, malware samples, structured datasets, logs, or other artifacts generated during experimentation.
 
-Original repository:  
-https://github.com/nicslabdev/CiberIA_O1_A1
+Instead of treating this exchange as an isolated external workflow, NICS CyberLab incorporates it as an operational bridge between the local platform and remote processing environments. In this way, artifacts produced inside the platform can be exported to other analysis machines or partner labs, processed remotely, and then reintroduced into NICS CyberLab together with the corresponding feedback.
 
-![CiberIA Lab](Images_readme/CiberIA_Lab.png)
+Typical actions supported through this capability include:
 
-To integrate this module into NICS CyberLab, a dedicated web interface was developed. This interface provides a more visual, manageable, and user-friendly way to access the original functionality of the repository. Instead of interacting only with scripts or backend processes, the user can work through a guided graphical workflow adapted to the platform. This makes profile selection, artifact validation, retraining, CSV-based inference, PCAP-based alternative processing, custom dataset generation from packet capture files, and dataset import easier to understand and operate.
+- selecting and preparing artifacts for exchange
+- packaging files when needed
+- transferring artifacts to remote machines or labs
+- launching remote processing tasks
+- verifying remote execution status
+- receiving processed outputs or analysis reports
+- visualizing returned feedback inside the platform
 
-#### Main interface actions
+This makes it possible to use NICS CyberLab not only as a local experimentation environment, but also as a coordination point for distributed analysis workflows involving external machines or remote labs.
 
-- **Load profiles** to inspect the available framework profiles
-- **Load status** to refresh the current runtime and artifact state
-- **Reproduce baseline results** to validate the original framework behavior
-- **Retrain framework model** to rebuild the model for the selected profile
-- **Export prepared framework CSV** to generate a reusable structured input
-- **Import dataset** to register and use external datasets inside the module
-- **Generate dataset from PCAP** to build custom structured datasets from packet capture files
-- **Run CSV inference** to apply inference on framework-compatible feature tables
-- **Convert PCAP to compatible CSV** to transform traffic captures into structured input
-- **Run alternative PCAP inference** to launch prediction from generated traffic features
+![Remote Lab Exchange](Images_readme/LAB_EXCHANGE_DASHBOARD.png)
 
-#### Role inside NICS CyberLab
+### Why it matters
 
-This module gives NICS CyberLab an integrated and usable surface for operationalizing the original CiberIA framework. It combines visual profile selection, artifact validation, retraining, dataset import, custom dataset generation from PCAP files, and inference in a single guided interface that is easier to use and inspect than a repository-only workflow.
-
-### Windows Lab Exchange
-
-The **Windows Lab Exchange** module connects NICS CyberLab with a remote Windows analysis machine prepared with FLARE-VM and the original HoneyV repository. Its purpose is to exchange suspicious files, trigger remote analysis actions, and recover the resulting JSON report.
-
-Original repository:  
-https://github.com/nicslabdev/HoneyV
-
-![Windows Lab Exchange](Images_readme/LAB_EXCHANGE_DASHBOARD.png)
-
-To integrate this module into NICS CyberLab, a dedicated web interface was developed. This interface provides a more visual, manageable, and user-friendly way to control the exchange workflow between the platform and the remote analysis host. Instead of relying only on direct file transfers, raw SSH commands, or manual report retrieval, the user can operate the full process through a guided graphical panel adapted to the platform.
-
-#### Main interface actions
-
-- browse local authorized directories and select suspicious artifacts
-- create ZIP packages from selected files
-- upload files into the module workspace
-- configure the SSH connection to the remote Windows machine
-- test remote connectivity
-- send files through SSH SFTP
-- verify that the remote file exists
-- execute remote commands or PowerShell scripts when needed
-- load and visualize remote JSON reports from the analysis machine
-
-#### Role inside NICS CyberLab
-
-This module provides a practical bridge between NICS CyberLab and a prepared Windows malware-analysis host. It improves usability by turning file exchange, remote execution, and report recovery into a single guided and inspectable workflow.
-
-### ETC Lab
-
-The **ETC Lab** module integrates the original `packet-level-etc` repository into NICS CyberLab for packet-level encrypted traffic classification, runtime control, and embedded dashboard access.
-
-Original repository:  
-https://github.com/nicslabdev/packet-level-etc
-
-![ETC Lab](Images_readme/Encrypted_Traffic_Classification.png)
-
-To integrate this module into NICS CyberLab, a dedicated web interface was developed. This interface provides a more visual, manageable, and user-friendly way to deploy and operate the original ETC workflow. Instead of working only through repository scripts and service execution commands, the user can install the environment, monitor its state, launch the dashboard, and interact with the classification workflow through a guided visual surface.
-
-#### Main interface actions
-
-- **Refresh** to reload the module status and runtime state
-- define **Capture Interface**, **Capture Seconds**, and **Base Directory**
-- **Install** to prepare the ETC environment from the original repository
-- **Start** to launch the ETC dashboard runtime
-- **Stop** to terminate the running ETC service
-- **Open Dash** to open the embedded ETC dashboard
-- **Show Control Panel** to return from the dashboard view to the runtime management panel
-
-#### Role inside NICS CyberLab
-
-This module gives NICS CyberLab an integrated operational layer for encrypted traffic classification. It turns the original ETC repository into a manageable and inspectable service with a clear control panel and embedded graphical dashboard.
-
-### Adversarial Detection Lab
-
-The **adv_detection** module integrates the external `advDetection` repository into NICS CyberLab as a guided execution and review surface for anomaly detection and adversarial robustness experiments.
-
-Original repository:  
-https://github.com/nicslabdev/advDetection
-
-![adv_detection](Images_readme/ADV_DETECTION_MODULE.png)
-
-To integrate this module into NICS CyberLab, a dedicated web interface was developed. This interface provides a more visual, manageable, and user-friendly way to browse repository experiments, launch them, and inspect their results. Instead of interacting only with notebooks, scripts, and command-line execution, the user can operate the repository through a guided graphical workflow adapted to the platform.
-
-#### Main interface actions
-
-- **Refresh** to reload module status, repository state, and run history
-- choose the execution **Mode** between notebook, Python file, or custom command
-- select the execution **Entrypoint**
-- provide optional **Arguments**
-- configure **Timeout seconds**
-- **Run** to execute the selected experiment
-- **Reload Assets** to rescan the repository and update the visible executable files
-- **View** previous runs and inspect stored details
-- review **Run Output**, **STDOUT**, and **STDERR** for execution analysis
-
-#### Role inside NICS CyberLab
-
-This module provides NICS CyberLab with a user-friendly way to integrate the original adversarial detection repository without embedding its internal scientific logic directly into the core platform. It improves visibility, execution control, and result inspection for repository-driven experiments.
+This capability extends NICS CyberLab beyond local execution boundaries. It allows the platform to send traffic captures, suspicious files, malware-related artifacts, logs, datasets, or other experiment outputs to external systems for remote processing, and then recover the resulting feedback in an inspectable way. As a result, NICS CyberLab can participate in distributed experimentation and analysis workflows without breaking the continuity of the platform experience.
 
 ---
 
