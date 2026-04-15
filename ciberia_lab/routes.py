@@ -6,16 +6,17 @@ from statistics import mean
 
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from ciberia_lab.services.config import DATA_SPLIT_FILES, FRAMEWORK_DIR, UPLOADS_DIR
-from ciberia_lab.services.model_service import (
-    activate_model,
-    get_active_model_path,
-    get_model,
+from ciberia_lab.services.config import FRAMEWORK_DIR, UPLOADS_DIR
+from ciberia_lab.services.custom_datasets import (
+    delete_custom_dataset,
+    get_all_profiles,
+    get_all_split_files,
+    import_custom_split_dataset,
 )
+from ciberia_lab.services.model_service import get_active_model_path, get_model
 from ciberia_lab.services.pcap_features import pcap_to_csv, pcap_to_dataframe
 from ciberia_lab.services.predictor import predict_from_csv_file, predict_from_dataframe
 from ciberia_lab.services.training_service import evaluate_active_model, train_default_model
-
 
 bp = Blueprint(
     "ciberia_lab",
@@ -28,42 +29,19 @@ bp = Blueprint(
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 APP_CORE_STATIC = PROJECT_ROOT / "app_core" / "static"
 
-PROFILE_INFO = {
-    "2017": {
-        "profile": "2017",
-        "title": "CIC-IDS2017",
-        "notebook": "Framework.ipynb",
-        "goal": "Model creation and analysis for CIC-IDS2017",
-        "split_file": str(FRAMEWORK_DIR / "data_split_2017.pkl"),
-        "base_model_file": str(FRAMEWORK_DIR / "stacked_model_original.pkl"),
-        "mode": "baseline_framework_artifact",
-    },
-    "2018": {
-        "profile": "2018",
-        "title": "CIC-IDS2018",
-        "notebook": "Framework copy.ipynb",
-        "goal": "Model creation and analysis for CIC-IDS2018",
-        "split_file": str(FRAMEWORK_DIR / "data_split_2018.pkl"),
-        "base_model_file": str(FRAMEWORK_DIR / "stacked_model_original.pkl"),
-        "mode": "framework_profile",
-    },
-    "unsw": {
-        "profile": "unsw",
-        "title": "UNSW-NB15",
-        "notebook": "Framework copy 2.ipynb",
-        "goal": "Model creation and analysis for UNSW-NB15",
-        "split_file": str(FRAMEWORK_DIR / "data_split_unsw.pkl"),
-        "base_model_file": str(FRAMEWORK_DIR / "stacked_model_original.pkl"),
-        "mode": "framework_profile",
-    },
-}
+
+def _profile_info() -> dict:
+    return get_all_profiles()
 
 
 def _load_split(dataset: str) -> dict:
     dataset = dataset.lower()
-    if dataset not in DATA_SPLIT_FILES:
+    all_splits = get_all_split_files()
+
+    if dataset not in all_splits:
         raise ValueError(f"Unsupported dataset: {dataset}")
-    with open(DATA_SPLIT_FILES[dataset], "rb") as f:
+
+    with open(all_splits[dataset], "rb") as f:
         return pickle.load(f)
 
 
@@ -175,10 +153,11 @@ def profiles():
     return jsonify(
         {
             "ok": True,
-            "profiles": list(PROFILE_INFO.values()),
+            "profiles": list(_profile_info().values()),
             "message": (
                 "Framework profiles represent dataset-oriented artifacts derived from the repository notebooks. "
-                "Prepared splits are the primary validation path. PCAP conversion is an alternative inference path."
+                "Prepared splits are the primary validation path. "
+                "PCAP conversion is an alternative inference path."
             ),
         }
     ), 200
@@ -190,7 +169,8 @@ def status():
     payload = {
         "ok": True,
         "active_model_path": get_active_model_path(),
-        "available_datasets": list(DATA_SPLIT_FILES.keys()),
+        "available_datasets": list(get_all_split_files().keys()),
+        "profiles": list(_profile_info().values()),
         "classes": model.classes_.tolist() if hasattr(model, "classes_") else [],
         "n_features_in": int(model.n_features_in_) if hasattr(model, "n_features_in_") else None,
         "feature_names_in": model.feature_names_in_.tolist() if hasattr(model, "feature_names_in_") else [],
@@ -199,15 +179,80 @@ def status():
     return jsonify(payload), 200
 
 
+@bp.route("/datasets/custom/status", methods=["GET"])
+def custom_datasets_status():
+    try:
+        custom_profiles = [
+            profile for profile in _profile_info().values()
+            if profile.get("source") == "custom"
+        ]
+
+        payload = {
+            "ok": True,
+            "custom_dataset_count": len(custom_profiles),
+            "custom_datasets": custom_profiles,
+            "available_custom_dataset_ids": [p.get("profile") for p in custom_profiles],
+            "message": "Custom dataset artifacts loaded successfully.",
+        }
+        return jsonify(payload), 200
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@bp.route("/datasets/import-split", methods=["POST"])
+def datasets_import_split():
+    try:
+        if "file" not in request.files:
+            return jsonify({"ok": False, "error": "Missing uploaded file in form field 'file'"}), 400
+
+        uploaded_file = request.files["file"]
+        if uploaded_file.filename == "":
+            return jsonify({"ok": False, "error": "Empty filename"}), 400
+
+        dataset_name = str(request.form.get("dataset_name", "")).strip()
+        dataset_id = str(request.form.get("dataset_id", "")).strip() or None
+        label_column = str(request.form.get("label_column", "Attack Type")).strip() or "Attack Type"
+
+        result = import_custom_split_dataset(
+            file_storage=uploaded_file,
+            dataset_name=dataset_name,
+            dataset_id=dataset_id,
+            label_column=label_column,
+        )
+
+        result["profiles"] = list(_profile_info().values())
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@bp.route("/datasets/delete", methods=["POST"])
+def datasets_delete():
+    try:
+        body = request.get_json(silent=True) or {}
+        dataset = str(body.get("dataset", "")).strip().lower()
+        result = delete_custom_dataset(dataset)
+        result["profiles"] = list(_profile_info().values())
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except FileNotFoundError as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @bp.route("/baseline/evaluate", methods=["POST"])
 def baseline_evaluate():
     try:
         body = request.get_json(silent=True) or {}
         dataset = str(body.get("dataset", "2017")).lower()
-
         model = get_model()
+
         result = evaluate_active_model(model, dataset=dataset)
-        result["profile"] = PROFILE_INFO.get(dataset, {})
+        result["profile"] = _profile_info().get(dataset, {})
         result["summary_explanation"] = _evaluation_summary(result)
         result["classification_rows"] = _classification_rows(result.get("classification_report", {}))
         result["mode"] = "baseline_reproduction"
@@ -224,17 +269,21 @@ def baseline_export_sample_csv():
         rows = int(request.args.get("rows", "50"))
         include_label = str(request.args.get("include_label", "1")) == "1"
 
-        if dataset not in DATA_SPLIT_FILES:
+        all_splits = get_all_split_files()
+        if dataset not in all_splits:
             return jsonify({"ok": False, "error": f"Invalid dataset: {dataset}"}), 400
 
         data = _load_split(dataset)
-
         x_key = "X_test" if split == "test" else "X_train"
         y_key = "y_test" if split == "test" else "y_train"
 
         df = data[x_key].head(rows).copy()
+
+        profile = _profile_info().get(dataset, {})
+        label_column = profile.get("label_column", "Attack Type")
+
         if include_label:
-            df["Attack Type"] = data[y_key].head(rows).values
+            df[label_column] = data[y_key].head(rows).values
 
         out_path = FRAMEWORK_DIR / f"sample_{dataset}_{split}_{rows}.csv"
         df.to_csv(out_path, index=False)
@@ -243,7 +292,7 @@ def baseline_export_sample_csv():
             {
                 "ok": True,
                 "dataset": dataset,
-                "profile": PROFILE_INFO.get(dataset, {}),
+                "profile": profile,
                 "split": split,
                 "rows": int(len(df)),
                 "csv_file": str(out_path),
@@ -266,12 +315,12 @@ def retrain():
         set_active = bool(body.get("set_active", True))
 
         result = train_default_model(dataset=dataset, set_active=set_active)
-        result["profile"] = PROFILE_INFO.get(dataset, {})
+        result["profile"] = _profile_info().get(dataset, {})
         result["summary_explanation"] = _evaluation_summary(
             {
                 "accuracy": result.get("accuracy"),
                 "macro_f1": result.get("macro_f1"),
-                "rows": 21000 if dataset == "2017" else None,
+                "rows": result.get("rows"),
                 "classification_report": result.get("classification_report", {}),
             }
         )
@@ -296,11 +345,8 @@ def predict_csv():
         result = predict_from_csv_file(uploaded_file)
         result["mode"] = "prepared_or_user_csv_inference"
         result["summary_explanation"] = _prediction_summary(result)
-        result["message"] = (
-            "CSV inference completed. Use prepared CSV files from framework splits as the primary validation path."
-        )
+        result["message"] = "CSV inference completed. Use prepared CSV files from framework splits as the primary validation path."
         return jsonify(result), 200
-
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     except Exception as e:
@@ -328,7 +374,6 @@ def extract_from_pcap():
         )
         result["message"] = "PCAP conversion completed successfully."
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
@@ -358,7 +403,6 @@ def predict_pcap():
         result["summary_explanation"] = _prediction_summary(result)
         result["message"] = "PCAP inference completed successfully."
         return jsonify(result), 200
-
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     except Exception as e:
@@ -369,7 +413,6 @@ def predict_pcap():
 def ui():
     return send_from_directory(APP_CORE_STATIC, "ciberia_lab.html")
 
-
 @bp.route("/ui/static/js/<path:filename>", methods=["GET"])
 def ui_static_js(filename):
     return send_from_directory(APP_CORE_STATIC / "js", filename)
@@ -378,3 +421,91 @@ def ui_static_js(filename):
 @bp.route("/ui/static/css/<path:filename>", methods=["GET"])
 def ui_static_css(filename):
     return send_from_directory(APP_CORE_STATIC / "css", filename)
+
+
+
+
+from ciberia_lab.services.pcap_dataset_builder import build_split_from_pcap
+from werkzeug.utils import secure_filename
+import os
+
+
+@bp.route("/datasets/import-from-pcap", methods=["POST"])
+def datasets_import_from_pcap():
+    try:
+        if "file" not in request.files:
+            return jsonify({"ok": False, "error": "Missing uploaded file in form field 'file'"}), 400
+
+        uploaded_file = request.files["file"]
+        if uploaded_file.filename == "":
+            return jsonify({"ok": False, "error": "Empty filename"}), 400
+
+        dataset_name = str(request.form.get("dataset_name", "")).strip()
+        dataset_id = str(request.form.get("dataset_id", "")).strip()
+        label = str(request.form.get("label", "")).strip() or None
+        auto_label = str(request.form.get("auto_label", "0")).strip() == "1"
+        label_column = str(request.form.get("label_column", "Attack Type")).strip() or "Attack Type"
+        test_size = float(request.form.get("test_size", "0.30"))
+        flow_timeout = float(request.form.get("flow_timeout", "120"))
+        activity_timeout = float(request.form.get("activity_timeout", "5"))
+
+        if not dataset_name:
+            return jsonify({"ok": False, "error": "dataset_name is required"}), 400
+
+        if not dataset_id:
+            return jsonify({"ok": False, "error": "dataset_id is required"}), 400
+
+        safe_name = secure_filename(uploaded_file.filename)
+        tmp_path = UPLOADS_DIR / safe_name
+        uploaded_file.save(tmp_path)
+
+        try:
+            built = build_split_from_pcap(
+                pcap_path=str(tmp_path),
+                dataset_id=dataset_id,
+                label=label,
+                auto_label=auto_label,
+                test_size=test_size,
+                flow_timeout=flow_timeout,
+                activity_timeout=activity_timeout,
+            )
+
+            split_path = Path(built["split_path"])
+
+            from ciberia_lab.services.custom_datasets import _write_json, _metadata_path
+
+            metadata = {
+                "profile": dataset_id,
+                "title": dataset_name,
+                "goal": "Custom dataset generated from uploaded PCAP in CiberIA Lab",
+                "label_column": label_column,
+                "imported_at_utc": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                "rows_train": built["rows_train"],
+                "rows_test": built["rows_test"],
+                "features": built["features"],
+                "labels": built["labels"],
+                "label_distribution": built["label_distribution"],
+                "original_filename": uploaded_file.filename or "",
+                "source_type": "pcap_generated",
+                "split_file": str(split_path),
+            }
+
+            _write_json(_metadata_path(dataset_id), metadata)
+
+            result = {
+                "ok": True,
+                "dataset": metadata,
+                "split_file": str(split_path),
+                "rows_total": built["rows_total"],
+                "message": "Custom dataset generated from PCAP successfully.",
+                "profiles": list(_profile_info().values()),
+            }
+            return jsonify(result), 200
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
+
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500

@@ -12,19 +12,25 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns=COLUMN_ALIASES).copy()
 
 
-def validate_and_prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def _get_required_features_from_model(model) -> list[str]:
+    if hasattr(model, "feature_names_in_"):
+        return [str(x) for x in model.feature_names_in_.tolist()]
+    return FEATURE_COLUMNS
+
+
+def validate_and_prepare_dataframe(df: pd.DataFrame, required_features: list[str]) -> pd.DataFrame:
     normalized = normalize_columns(df)
 
-    missing = [col for col in FEATURE_COLUMNS if col not in normalized.columns]
+    missing = [col for col in required_features if col not in normalized.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-    prepared = normalized[FEATURE_COLUMNS].copy()
+    prepared = normalized[required_features].copy()
 
-    for col in FEATURE_COLUMNS:
+    for col in required_features:
         prepared[col] = pd.to_numeric(prepared[col], errors="coerce")
 
-    bad_cols = [col for col in FEATURE_COLUMNS if prepared[col].isna().any()]
+    bad_cols = [col for col in required_features if prepared[col].isna().any()]
     if bad_cols:
         raise ValueError(f"Invalid or non-numeric values found in columns: {bad_cols}")
 
@@ -33,7 +39,8 @@ def validate_and_prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 def predict_from_dataframe(df: pd.DataFrame) -> dict[str, Any]:
     model = get_model()
-    X = validate_and_prepare_dataframe(df)
+    required_features = _get_required_features_from_model(model)
+    X = validate_and_prepare_dataframe(df, required_features)
 
     predictions = model.predict(X).tolist()
 
@@ -52,24 +59,25 @@ def predict_from_dataframe(df: pd.DataFrame) -> dict[str, Any]:
     for i, pred in enumerate(predictions):
         item = {
             "row_index": int(i),
-            "prediction": pred,
+            "prediction": str(pred),
         }
         if max_confidence is not None:
             item["confidence"] = float(max_confidence[i])
         if probabilities is not None and classes is not None:
             item["probabilities"] = {
-                cls: float(probabilities[i][j]) for j, cls in enumerate(classes)
+                str(cls): float(probabilities[i][j]) for j, cls in enumerate(classes)
             }
         results.append(item)
 
     summary: dict[str, int] = {}
     for pred in predictions:
+        pred = str(pred)
         summary[pred] = summary.get(pred, 0) + 1
 
     return {
         "ok": True,
         "input_rows": int(len(X)),
-        "required_features": FEATURE_COLUMNS,
+        "required_features": required_features,
         "summary": summary,
         "results": results,
     }

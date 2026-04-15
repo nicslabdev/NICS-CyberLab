@@ -10,16 +10,19 @@ from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 
-from .config import DATA_SPLIT_FILES, MODELS_DIR
+from .config import MODELS_DIR
+from .custom_datasets import get_all_split_files
 from .model_service import activate_model
 
 
 def load_split(dataset: str):
     dataset = dataset.lower()
-    if dataset not in DATA_SPLIT_FILES:
-        raise ValueError(f"Unsupported dataset: {dataset}. Valid values: {list(DATA_SPLIT_FILES.keys())}")
+    all_split_files = get_all_split_files()
 
-    split_path = DATA_SPLIT_FILES[dataset]
+    if dataset not in all_split_files:
+        raise ValueError(f"Unsupported dataset: {dataset}. Valid values: {list(all_split_files.keys())}")
+
+    split_path = all_split_files[dataset]
     if not split_path.exists():
         raise FileNotFoundError(f"Split file not found: {split_path}")
 
@@ -63,18 +66,14 @@ def build_default_stacking_model():
         cv=5,
         n_jobs=-1,
     )
-
     return model
 
 
 def _evaluate(model, X_test, y_test) -> dict:
     pred = model.predict(X_test)
-
     accuracy = accuracy_score(y_test, pred)
     macro_f1 = f1_score(y_test, pred, average="macro")
-
     report = classification_report(y_test, pred, output_dict=True, zero_division=0)
-
     labels = sorted(np.unique(np.concatenate([np.array(y_test), np.array(pred)])))
     cm = confusion_matrix(y_test, pred, labels=labels)
 
@@ -84,12 +83,12 @@ def _evaluate(model, X_test, y_test) -> dict:
         "labels": labels,
         "confusion_matrix": cm.tolist(),
         "classification_report": report,
+        "rows": int(len(X_test)),
     }
 
 
 def train_default_model(dataset: str = "2017", set_active: bool = True) -> dict:
     data = load_split(dataset)
-
     X_train = data["X_train"]
     X_test = data["X_test"]
     y_train = data["y_train"]
@@ -99,7 +98,6 @@ def train_default_model(dataset: str = "2017", set_active: bool = True) -> dict:
     model.fit(X_train, y_train)
 
     metrics = _evaluate(model, X_test, y_test)
-
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     model_path = MODELS_DIR / f"trained_{dataset}_{ts}.pkl"
     joblib.dump(model, model_path)
@@ -119,15 +117,12 @@ def train_default_model(dataset: str = "2017", set_active: bool = True) -> dict:
 
 def evaluate_active_model(model, dataset: str = "2017") -> dict:
     data = load_split(dataset)
-
     X_test = data["X_test"]
     y_test = data["y_test"]
-
     metrics = _evaluate(model, X_test, y_test)
 
     return {
         "ok": True,
         "dataset": dataset,
-        "rows": int(len(X_test)),
         **metrics,
     }

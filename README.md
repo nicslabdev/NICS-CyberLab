@@ -369,14 +369,14 @@ Beyond the core infrastructure, scenario, monitoring, and forensic services, NIC
 
 ### CiberIA Lab
 
-The **CiberIA Lab** module integrates the original CiberIA framework into NICS CyberLab for network flow classification, model retraining, controlled inference, and artifact-oriented validation.
+The **CiberIA Lab** module integrates the original CiberIA framework into NICS CyberLab for network flow classification, model retraining, controlled inference, artifact-oriented validation, custom dataset generation from PCAP files, and external dataset import.
 
 Original repository:  
 https://github.com/nicslabdev/CiberIA_O1_A1
 
 ![CiberIA Lab](Images_readme/CiberIA_Lab.png)
 
-To integrate this module into NICS CyberLab, a dedicated web interface was developed. This interface provides a more visual, manageable, and user-friendly way to access the original functionality of the repository. Instead of interacting only with scripts or backend processes, the user can work through a guided graphical workflow adapted to the platform. This makes profile selection, artifact validation, retraining, CSV-based inference, and PCAP-based alternative processing easier to understand and operate.
+To integrate this module into NICS CyberLab, a dedicated web interface was developed. This interface provides a more visual, manageable, and user-friendly way to access the original functionality of the repository. Instead of interacting only with scripts or backend processes, the user can work through a guided graphical workflow adapted to the platform. This makes profile selection, artifact validation, retraining, CSV-based inference, PCAP-based alternative processing, custom dataset generation from packet capture files, and dataset import easier to understand and operate.
 
 #### Main interface actions
 
@@ -385,13 +385,15 @@ To integrate this module into NICS CyberLab, a dedicated web interface was devel
 - **Reproduce baseline results** to validate the original framework behavior
 - **Retrain framework model** to rebuild the model for the selected profile
 - **Export prepared framework CSV** to generate a reusable structured input
+- **Import dataset** to register and use external datasets inside the module
+- **Generate dataset from PCAP** to build custom structured datasets from packet capture files
 - **Run CSV inference** to apply inference on framework-compatible feature tables
 - **Convert PCAP to compatible CSV** to transform traffic captures into structured input
 - **Run alternative PCAP inference** to launch prediction from generated traffic features
 
 #### Role inside NICS CyberLab
 
-This module gives NICS CyberLab an integrated and usable surface for operationalizing the original CiberIA framework. It combines visual profile selection, artifact validation, retraining, and inference in a single guided interface that is easier to use and inspect than a repository-only workflow.
+This module gives NICS CyberLab an integrated and usable surface for operationalizing the original CiberIA framework. It combines visual profile selection, artifact validation, retraining, dataset import, custom dataset generation from PCAP files, and inference in a single guided interface that is easier to use and inspect than a repository-only workflow.
 
 ### Windows Lab Exchange
 
